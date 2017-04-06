@@ -1,0 +1,106 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+    },
+    "variables": {
+    },
+  "resources": [
+    {
+      "name": "asawewefgfg0",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "https://allarmfiles.blob.core.windows.net/test/Empty.json",
+          "contentVersion": "1.0.0.0"
+        }
+
+      }
+    },
+    {
+      "name": "[concat('asawewefgfg', copyIndex(1))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "copy": {
+        "count": 3,
+        "name": "looppip"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'asawewefgfg', copyIndex(0))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat('https://allarmfiles.blob.core.windows.net/test/', 'PIP.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "publicIPAddressName": {
+            "value": "[concat('asawewefgfg', copyIndex(1))]"
+          },
+          "publicIPAddressType": {
+            "value": "Dynamic"
+          },
+          "dnsNameForPublicIP": {
+            "value": "[concat('asawewefgfg', copyIndex(1))]"
+          },
+          "resourceLocation": {
+            "value": "[resourceGroup().location]"
+          }
+        }
+      }
+    },
+    {
+      "name": "GetVM0",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "https://allarmfiles.blob.core.windows.net/test/Empty.json",
+          "contentVersion": "1.0.0.0"
+        }
+
+      }
+    } ,
+    {
+      "name": "[concat('GetVM',string(copyIndex(1)))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "dependsOn": [
+        "looppip",
+        "[resourceId ('Microsoft.Resources/deployments', concat( 'GetVM', string(sub(copyIndex(1),1)) ))]"
+      ],
+      "copy": {
+        "count": 3,
+        "name": "were"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat('https://allarmfiles.blob.core.windows.net/test/', 'Generation.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "cobject": {
+            "value": "[reference(concat('GetVM', string(sub(copyindex(1),1)))).outputs.myoutput.value]"
+          },
+          "ipaddress": {
+            //"value": "[reference(concat('asawewefgfg', string(copyindex(1)))).outputs.resourceDetails.value.ipAddress]"
+            "value": "[reference(concat('Microsoft.Network/publicIPAddresses/','asawewefgfg', string(copyindex(1))), '2015-06-15').ipAddress]"
+          }
+
+
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "aa": {
+      "type": "object",
+      "value": "[reference('GetVM3')]"
+    }
+  }
+}

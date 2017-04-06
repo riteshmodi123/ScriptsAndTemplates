@@ -1,0 +1,15 @@
+
+
+# base image on which custom image is based on
+FROM microsoft/windowsservercore
+
+
+
+# installing IIS and its related windows feature
+RUN powershell -Command  Install-WindowsFeature web-server
+
+
+
+
+
+

@@ -1,0 +1,89 @@
+﻿{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "VMName": {
+            "type": "string",
+            "defaultValue": "sqldock",
+            "metadata": {
+                "description": "This name will also be used to prefix the network security group, storage, virtual network, network card, subnet and public IP address name."
+            }
+        },
+
+        "location": {
+            "type": "string",
+            "defaultValue": "West Europe",
+            "allowedValues": [
+                "East US",
+                "West US",
+                "North Europe",
+                "East Asia",
+                "Southeast Asia",
+                "West Europe"
+            ],
+            "metadata": {
+                "description": "Resource Location"
+            }
+        }
+    },
+    "variables": {
+        "hostDNSNameScriptArgument": "*.westeurope.cloudapp.azure.com"
+    },
+    "resources": [
+
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/GetContainer')]",
+            "apiVersion": "2015-05-01-preview",
+            "location": "West Europe",
+            "dependsOn": [
+
+            ],
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.13",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "sasToken": "?sv=2015-04-05&ss=bfqt&srt=sco&sp=rwdlacup&se=2016-12-31T14:21:11Z&st=2016-07-14T06:21:11Z&spr=https&sig=%2Fad6Mall1um1QM00h3MQ4GjFNzT8UchehimejynOAMo%3D",
+                    "ModulesUrl": "[concat('https://win2016devops.blob.core.windows.net/armt','/InstallContainer.ps1.zip')]",
+                    "ConfigurationFunction": "InstallContainer.ps1\\CreateContainer"
+
+                }
+
+            }
+        },
+        {
+            "name": "[concat(parameters('vmName'),'/containerConfiguration')]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "location": "[parameters('location')]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+
+                "[resourceId(resourceGroup().name,'Microsoft.Compute/virtualMachines/extensions', parameters('vmName'),'GetContainer')]"
+            ],
+            "tags": {
+                "displayName": "containerConfiguration"
+            },
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.2",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "https://win2016devops.blob.core.windows.net/armt/ContainerConfig.ps1"
+
+                    ],
+                    "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -file ContainerConfig.ps1 ',variables('hostDNSNameScriptArgument'),' ', 'citynextadmin', ' ', 'citynext!1234', ' ' , 'localhost')]"
+                },
+               "protectedSettings": {
+                   "storageAccountName": "win2016devops",
+                   "storageAccountKey": "vg/sbiA0XyBdAmTdZb1OcQA79YS+ZMpI//mE0a/T/llb5XIW2Uysux1WrKQnTBugUrHyAo27sNHHRXGTw+pQDw=="
+               }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

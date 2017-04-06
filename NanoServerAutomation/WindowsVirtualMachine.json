@@ -1,0 +1,472 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "citynextadmin",
+            "minLength": 1,
+            "metadata": {
+                "description": "Username for the Virtual Machine."
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "defaultValue": "citynext!1234",
+            "metadata": {
+                "description": "Password for the Virtual Machine."
+            }
+        },
+        "dnsNameForPublicIP": {
+            "type": "string",
+            "minLength": 1,
+            "defaultValue": "citynext1234",
+            "metadata": {
+                "description": "Globally unique DNS Name for the Public IP used to access the Virtual Machine."
+            }
+        },
+        "dnsNameForPublicIP1": {
+            "type": "string",
+            "minLength": 1,
+            "defaultValue": "citynext1235",
+            "metadata": {
+                "description": "Globally unique DNS Name for the Public IP used to access the Virtual Machine."
+            }
+        },
+        "windowsOSVersion": {
+            "type": "string",
+            "defaultValue": "2016-Nano-Server-Technical-Preview",
+            "allowedValues": [
+                "2008-R2-SP1",
+                "2012-Datacenter",
+                "2012-R2-Datacenter",
+                "2016-Nano-Server-Technical-Preview"
+            ],
+            "metadata": {
+                "description": "The Windows version for the VM. This will pick a fully patched image of this given Windows version. Allowed values: 2008-R2-SP1, 2012-Datacenter, 2012-R2-Datacenter."
+            }
+        }
+    },
+    "variables": {
+        "imagePublisher": "MicrosoftWindowsServer",
+        "imageOffer": "WindowsServer",
+        "windowsOSVersion": "Windows-Server-Technical-Preview",
+        "OSDiskName": "osdiskforwindowssimple",
+        "OSClientDiskName": "[concat(variables('ClientVM'),'_osdisk')]",
+        "nicName": "myVMNic",
+        "nicClientName": "myClientNic",
+        "addressPrefix": "10.0.0.0/16",
+        "subnetName": "Subnet",
+        "subnetPrefix": "10.0.0.0/24",
+        "vhdStorageType": "Standard_LRS",
+        "publicIPAddressName": "myPublicIP",
+        "publicIPAddressName1": "myPublicIP1",
+        "publicIPAddressType": "Static",
+        "vhdStorageContainerName": "vhds",
+        "vmName": "MyNanoVM",
+        "ClientVM": "MyclientVM",
+        "vmSize": "Standard_A4",
+        "virtualNetworkName": "MyVNET",
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
+        "vhdStorageName": "[concat('vhdstorage', uniqueString(resourceGroup().id))]"
+
+
+
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('vhdStorageName')]",
+            "apiVersion": "2015-06-15",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "StorageAccount"
+            },
+            "properties": {
+                "accountType": "[variables('vhdStorageType')]"
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIPAddressName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PublicIPAddress"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('dnsNameForPublicIP')]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[variables('virtualNetworkName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', concat(variables('vmName'),'_nsg1'))]"
+            ],
+            "tags": {
+                "displayName": "VirtualNetwork"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('addressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[variables('subnetPrefix')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('vmName'),'_nsg1'))]"
+                            }
+
+                        }
+                    }
+                ]
+            }
+        },
+        {
+
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[concat(variables('vmName'),'_nsg1')]",
+            "apiVersion": "2015-05-01-preview",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "RDP",
+                        "properties": {
+                            "description": "RDP",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 200,
+                            "direction": "Inbound"
+                        }
+                    },
+
+                    {
+                        "name": "Docker",
+                        "properties": {
+                            "description": "Docker",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2375",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 300,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "Dockers",
+                        "properties": {
+                            "description": "Dockers",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2376",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 700,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "WinRM",
+                        "properties": {
+                            "description": "WinRM",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "5985",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 400,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "WinRMs",
+                        "properties": {
+                            "description": "WinRMs",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "5986",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 500,
+                            "direction": "Inbound"
+                        }
+                    },
+                    {
+                        "name": "http",
+                        "properties": {
+                            "description": "http",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "80",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 600,
+                            "direction": "Inbound"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NetworkInterface"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Static",
+                            "PrivateIpAddress": "10.0.0.4",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            }
+
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('vmName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VirtualMachine"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('vmSize')]"
+                },
+                "osProfile": {
+                    "secrets": [
+                        {
+                            "sourceVault": { "id": "/subscriptions/af75f52f-1ab4-4bec-bed8-4d3d9b8f7eab/resourceGroups/TotalNano/providers/Microsoft.KeyVault/vaults/riteshmodi" },
+                            "vaultCertificates": [
+                                {
+                                    "certificateUrl": "https://riteshmodi.vault.azure.net:443/secrets/cert/46c6e57ed31c4431aca90a41406c19e6",
+                                    "certificateStore": "My"
+                                }
+                            ]
+                        }
+                    ],
+
+                    "computerName": "[variables('vmName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVMAgent": true,
+                        "enableAutomaticUpdates": true,
+                        "winRM": {
+                            "listeners": [
+                                {
+                                    "protocol": "Https",
+                                    "certificateUrl": "https://riteshmodi.vault.azure.net:443/secrets/cert/46c6e57ed31c4431aca90a41406c19e6"
+                                }
+                            ]
+                        }
+                    }
+                },
+
+
+
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('imagePublisher')]",
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[parameters('windowsOSVersion')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "osdisk",
+                        "vhd": {
+                            "uri": "[concat('http://', variables('vhdStorageName'), '.blob.core.windows.net/', variables('vhdStorageContainerName'), '/', variables('OSDiskName'), '.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIPAddressName1')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PublicIPAddress1"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                    "domainNameLabel": "[tolower(parameters('dnsNameForPublicIP1'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicClientName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NetworkInterface1"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName1'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Static",
+                            "PrivateIpAddress": "10.0.0.5",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName1'))]"
+                            },
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('ClientVM')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VirtualMachine"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('vhdStorageName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicClientName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('vmSize')]"
+                },
+                "osProfile": {
+                    "computername": "[variables('ClientVM')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('imagePublisher')]",
+                        "offer": "[variables('imageOffer')]",
+                        "sku": "[variables('windowsOSVersion')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "osdisk",
+                        "vhd": {
+                            "uri": "[concat('http://',variables('vhdStorageName'),'.blob.core.windows.net/',variables('vhdStorageContainerName'),'/',variables('OSClientDiskName'),'.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicClientName'))]"
+                        }
+                    ]
+                }
+            }
+
+        },
+        {
+            "name": "[concat(variables('ClientVM'),'/PSext1')]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('ClientVM') )]",
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+            ],
+            "tags": {
+                "displayName": "custext111"
+            },
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.8",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "https://armfiledevops.blob.core.windows.net/testdeployment/testofnano.ps1"
+                        
+                        
+                    ],
+                    "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File testofnano.ps1', ' -dnsName ', reference(variables('publicIPAddressName')).dnsSettings.fqdn, ' -internalIP ', reference(variables('nicName')).ipConfigurations[0].properties.privateIPAddress, ' -publicIP ',  reference(variables('publicIPAddressName')).ipAddress, ' -username ', 'citynextadmin',' -password ','citynext!1234',' -nanoName ','MyNanoVM')]"
+
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "dnsname": {
+            "type": "string",
+            "value": "[reference(variables('publicIPAddressName')).dnsSettings.fqdn]"
+        },
+        "publicIP": {
+            "type": "string",
+            "value": "[reference(variables('publicIPAddressName')).ipAddress]"
+        },
+        "internalIP": {
+            "type": "string",
+            "value": "[reference(variables('nicName')).ipConfigurations[0].properties.privateIPAddress]"
+
+        }
+    }
+}

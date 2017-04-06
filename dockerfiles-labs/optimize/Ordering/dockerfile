@@ -1,0 +1,6 @@
+FROM microsoft/windowsservercore
+
+RUN mkdir test-1
+RUN mkdir test-2
+RUN mkdir test-5
+RUN mkdir test-4

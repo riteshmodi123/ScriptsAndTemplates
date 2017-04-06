@@ -1,0 +1,4 @@
+FROM microsoft/windowsservercore
+RUN powershell.exe -Command Invoke-WebRequest "https://www.python.org/ftp/python/3.5.1/python-3.5.1.exe" -OutFile c:\python-3.5.1.exe
+RUN powershell.exe -Command Start-Process c:\python-3.5.1.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait
+RUN powershell.exe -Command Remove-Item c:\python-3.5.1.exe -Force
